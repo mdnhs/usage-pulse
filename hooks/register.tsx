@@ -115,23 +115,50 @@ const resetText = (iso?: string) => {
   return `Resets ${day}, ${time}`
 }
 
-let isCompacting = false
+// How often the session-long timer looks for a large context while idle.
+const AUTO_COMPACT_POLL = 5_000
+// A compaction that has not settled by then is taken as lost.
+const COMPACT_TIMEOUT = 5 * 60_000
 
-// Compacts between turns; a call made while a turn runs is refused, and the
-// next prompt tries again.
+let compactingSince = 0
+// Each failure reason is shown once a session, so a refusal during every
+// running turn does not repeat.
+const reportedFailures = new Set<string>()
+
+// Compacts between turns. While a turn runs the engine refuses the call, and
+// the next poll or prompt tries again.
 async function compactNow($: EngineInterface) {
-  if (isCompacting) return
-  isCompacting = true
+  const now = await $.clock.now()
+  if (compactingSince && now - compactingSince < COMPACT_TIMEOUT) return
+  compactingSince = now
   try {
     const result = await $.session.compact()
-    if ('skip' in result) return
+    if ('skip' in result) {
+      reportOnce($, `Auto-compact skipped: ${result.skip}`)
+      return
+    }
     const usage = await $.session.usage()
     await update($, snapshot, () => toSnapshot(usage.context, usage.rateLimits, usage.cost))
     $.ui.toast('Auto-compacted: context was over 150k tokens')
-  } catch {
-    // A turn was running; prompt.submit retries.
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    // Refused mid-turn is expected; anything else the person should see.
+    if (!/turn/i.test(reason)) reportOnce($, `Auto-compact failed: ${reason}`)
   } finally {
-    isCompacting = false
+    compactingSince = 0
+  }
+}
+
+function reportOnce($: EngineInterface, text: string) {
+  if (reportedFailures.has(text)) return
+  reportedFailures.add(text)
+  $.ui.toast(text)
+}
+
+async function compactIfLarge($: EngineInterface) {
+  const snap = await read($, snapshot)
+  if ((await read($, autoCompact)) && (snap?.contextTokens ?? 0) >= LARGE_CONTEXT) {
+    await compactNow($)
   }
 }
 
@@ -153,15 +180,15 @@ export const register: Register = on => {
     await update($, snapshot, () => toSnapshot(usage.context, usage.rateLimits, usage.cost))
     const isOn = (await $.store.get('autoCompact')) === true
     await update($, autoCompact, () => isOn)
+    // Session-long, so it outlives any one hook: compacts once Claude is idle.
+    $.clock.every(AUTO_COMPACT_POLL, () => void compactIfLarge($))
 
     return result
   })
 
+  // A prompt sent before the poll caught the idle moment: compact first.
   on('prompt.submit', async ($, e, next) => {
-    const snap = await read($, snapshot)
-    if ((await read($, autoCompact)) && (snap?.contextTokens ?? 0) >= LARGE_CONTEXT) {
-      await compactNow($)
-    }
+    await compactIfLarge($)
 
     return next(e)
   })
@@ -185,10 +212,6 @@ export const register: Register = on => {
     }
     if (weekly && e.changed.includes('rateLimits') && weekly.percentUsed >= 80) {
       $.ui.toast(`${weekly.percentUsed}% of your weekly limit is used`)
-    }
-    if ((await read($, autoCompact)) && (e.context.tokens ?? 0) >= LARGE_CONTEXT) {
-      // Measured as a turn ends: give it a moment to settle, then compact.
-      $.clock.after(1500, () => void compactNow($))
     }
 
     return next(e)
@@ -262,7 +285,7 @@ export const register: Register = on => {
 
       if (burn?.emptyAt) {
         const day = WEEKDAYS[new Date(burn.emptyAt).getDay()]
-        parts.push({ text: `${burn.perHour.toFixed(1)}%/h ⚠ out by ${day}`, color: SOFT.amber })
+        parts.push({ text: `${burn.perHour.toFixed(1)}%/h ⚠ ${day}`, color: SOFT.amber })
       } else if (burn) {
         parts.push({ text: `${burn.perHour.toFixed(1)}%/h · lasts to reset`, color: SOFT.sage })
       } else {
@@ -290,7 +313,7 @@ export const register: Register = on => {
     }
     if (snap.costUsd !== undefined) {
       const used = tok.calls > 0 ? `${fmtTokens(tok.main + tok.sub)} · ` : ''
-      parts.push({ text: `Session ${used}${fmtUsd(snap.costUsd)}`, color: SOFT.sand })
+      parts.push({ text: `${used}${fmtUsd(snap.costUsd)}`, color: SOFT.sand })
     }
 
     if (parts.length === 0) {

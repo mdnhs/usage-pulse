@@ -5,7 +5,7 @@
 usage-pulse adds one calm line above the prompt:
 
 ```
-Week 30% ↻5d 13h · 0.9%/h ⚠ out by Thursday · 5h 25% · Context 158k ⚠ ●━ · Session 623k · $3.45
+Week 30% ↻5d 13h · 0.9%/h ⚠ Thursday · 5h 25% · Context 158k ⚠ ●━ · 623k · $3.45
 ```
 
 ## Why you might want it
@@ -51,10 +51,10 @@ In the desktop app, where `/plugin` does not run: click **+** next to the prompt
 | Item | Example | Meaning |
 | --- | --- | --- |
 | Week | `Week 30% ↻5d 13h` | Share of your 7-day limit used, and time left until it resets |
-| Forecast | `0.9%/h ⚠ out by Thursday` | Your pace on the weekly limit, and the day it runs out if that is before the reset |
+| Forecast | `0.9%/h ⚠ Thursday` | Your pace on the weekly limit, and the day it runs out if that is before the reset |
 | 5h | `5h 25%` | Share of your 5-hour limit used. Its reset time appears once it passes 70% |
 | Context | `Context 158k ⚠` | Tokens in the current context window. ⚠ appears above 150k |
-| Session | `Session 623k · $3.45` | Tokens processed this session (main chat and subagents, cache reads included) and its cost at API prices |
+| Session | `623k · $3.45` | Tokens processed this session (main chat and subagents, cache reads included) and its cost at API prices |
 
 The forecast works out two paces and goes by the faster one:
 
@@ -66,7 +66,7 @@ Its states:
 | State | Meaning |
 | --- | --- |
 | `0.4%/h · lasts to reset` | At this pace the limit outlasts the current week |
-| `0.9%/h ⚠ out by Thursday` | At this pace the limit runs out before it resets, on that day |
+| `0.9%/h ⚠ Thursday` | At this pace the limit runs out on that day, before it resets |
 | `Forecast: steady` | Nothing used yet this week |
 | `Forecast: measuring` | Less than an hour into a new week, or no reset time reported yet |
 
@@ -80,8 +80,10 @@ Next to the context size is a small switch: `●━` (grey) is off, `━●` (gr
 
 While it is on, usage-pulse runs `/compact` for you whenever the context passes 150k tokens:
 
-- right after the reply that took it over 150k, once the turn has finished;
-- or, if a turn was still running then, just before your next message is sent.
+- within a few seconds of Claude finishing its reply, once it is idle;
+- or, if you send a message before that, just before your message goes out.
+
+If a compaction is skipped or fails, a notification says why.
 
 You get a short notification each time it compacts. The setting is remembered across sessions and projects, and it is off until you turn it on.
 

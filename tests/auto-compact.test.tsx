@@ -15,7 +15,7 @@ const measure = (tokens: number) => ({
 // Stands in for the engine: commands, usage, the store, compaction.
 const engine = (on: Parameters<Parameters<typeof test>[1]>[1], log: string[], stored: { value?: unknown }) => {
   on('clock.now', () => ({ value: Date.parse('2026-10-27T12:00:00Z') }))
-  on('clock.after', () => ({ value: undefined }))
+  on('clock.every', () => ({ value: undefined }))
   on('command.register', () => ({ value: { command: 'usage-pulse' } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.usage', () => ({ value: { startedAt: 0, ...measure(160_000), changed: undefined } }))
