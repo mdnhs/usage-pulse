@@ -25,8 +25,10 @@ Open an issue first, so we can agree on the idea before you spend time on it. Th
 3. Check your change:
    ```
    claude plugin validate .
+   claude plugin test .
    npx tsc -p .
    ```
+   Add or update a test in `tests/` for any change in behaviour.
 4. If you change the fields of a value kept in state (`types/index.d.ts`), bump that atom's `shape` tag in `hooks/register.tsx`, so values stored by an older version are discarded instead of misread.
 5. Open a pull request that says what changed and why, with a screenshot for any visual change.
 

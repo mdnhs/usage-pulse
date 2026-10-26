@@ -19,6 +19,7 @@ declare module 'claude-code' {
       snapshot: Shaped<Snapshot | null>
       tokens: Shaped<Tokens>
       baseline: Shaped<Baseline | null>
+      autoCompact: Shaped<boolean>
     }
   }
 }

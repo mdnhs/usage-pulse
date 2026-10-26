@@ -1,5 +1,11 @@
 import { atom, read, update } from 'claude-code'
-import type { Register, SessionCost, SessionContextUsage, SessionRateLimit } from 'claude-code'
+import type {
+  EngineInterface,
+  Register,
+  SessionCost,
+  SessionContextUsage,
+  SessionRateLimit,
+} from 'claude-code'
 
 import type { Limit, Snapshot, Tokens } from '../types'
 
@@ -18,6 +24,13 @@ const tokens = atom(
 const baseline = atom({ plugin: 'usage-pulse', key: 'baseline' } as const, null, {
   shape: 'baseline-1',
 })
+// Mirrors the 'autoCompact' store key, which keeps the toggle across sessions.
+const autoCompact = atom({ plugin: 'usage-pulse', key: 'autoCompact' } as const, false, {
+  shape: 'auto-compact-1',
+})
+
+// Context size that raises the ⚠ and, with the toggle on, compacts.
+const LARGE_CONTEXT = 150_000
 
 const HOUR = 3_600_000
 const WEEK = 7 * 24 * HOUR
@@ -93,6 +106,33 @@ const resetText = (iso?: string) => {
   return `Resets ${day}, ${time}`
 }
 
+let isCompacting = false
+
+// Compacts between turns; a call made while a turn runs is refused, and the
+// next prompt tries again.
+async function compactNow($: EngineInterface) {
+  if (isCompacting) return
+  isCompacting = true
+  try {
+    const result = await $.session.compact()
+    if ('skip' in result) return
+    const usage = await $.session.usage()
+    await update($, snapshot, () => toSnapshot(usage.context, usage.rateLimits, usage.cost))
+    $.ui.toast('Auto-compacted: context was over 150k tokens')
+  } catch {
+    // A turn was running; prompt.submit retries.
+  } finally {
+    isCompacting = false
+  }
+}
+
+async function toggleAutoCompact($: EngineInterface) {
+  const isOn = !(await read($, autoCompact))
+  await update($, autoCompact, () => isOn)
+  await $.store.set('autoCompact', isOn)
+  $.ui.toast(isOn ? 'Auto-compact on: compacts when context passes 150k' : 'Auto-compact off')
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -102,8 +142,19 @@ export const register: Register = on => {
     const result = await next(e)
     const usage = await $.session.usage()
     await update($, snapshot, () => toSnapshot(usage.context, usage.rateLimits, usage.cost))
+    const isOn = (await $.store.get('autoCompact')) === true
+    await update($, autoCompact, () => isOn)
 
     return result
+  })
+
+  on('prompt.submit', async ($, e, next) => {
+    const snap = await read($, snapshot)
+    if ((await read($, autoCompact)) && (snap?.contextTokens ?? 0) >= LARGE_CONTEXT) {
+      await compactNow($)
+    }
+
+    return next(e)
   })
 
   on('command.run', { command: 'usage-pulse' }, async $ => {
@@ -125,6 +176,10 @@ export const register: Register = on => {
     }
     if (weekly && e.changed.includes('rateLimits') && weekly.percentUsed >= 80) {
       $.ui.toast(`${weekly.percentUsed}% of your weekly limit is used`)
+    }
+    if ((await read($, autoCompact)) && (e.context.tokens ?? 0) >= LARGE_CONTEXT) {
+      // Measured as a turn ends: give it a moment to settle, then compact.
+      $.clock.after(1500, () => void compactNow($))
     }
 
     return next(e)
@@ -154,7 +209,7 @@ export const register: Register = on => {
       return next(e)
     }
 
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Button, Text } = $.ui.resolve(e)
     const now = await $.clock.now()
     const base = await read($, baseline)
     const weekly = snap.limits.find(l => l.kind === 'seven_day')
@@ -219,8 +274,8 @@ export const register: Register = on => {
     }
     if (ctxK !== undefined) {
       parts.push({
-        text: ctxK >= 150 ? `Context ${ctxK}k ⚠` : `Context ${ctxK}k`,
-        color: ctxK >= 150 ? SOFT.amber : SOFT.lavender,
+        text: ctxK * 1000 >= LARGE_CONTEXT ? `Context ${ctxK}k ⚠` : `Context ${ctxK}k`,
+        color: ctxK * 1000 >= LARGE_CONTEXT ? SOFT.amber : SOFT.lavender,
       })
     }
     if (snap.costUsd !== undefined) {
@@ -232,12 +287,22 @@ export const register: Register = on => {
       return <Text dimColor>Usage shows after the first reply</Text>
     }
 
+    const isAutoCompact = await read($, autoCompact)
+
     return (
       <Box gap={1}>
         {parts.flatMap((p, i) => [
           ...(i > 0 ? [<Text dimColor>·</Text>] : []),
           <Text color={p.color}>{p.text}</Text>,
         ])}
+        <Text dimColor>·</Text>
+        <Button
+          key="auto-compact"
+          label={isAutoCompact ? 'Auto-compact: on' : 'Auto-compact: off'}
+          plain
+          dimColor={!isAutoCompact}
+          onPress={() => toggleAutoCompact($)}
+        />
       </Box>
     )
   })

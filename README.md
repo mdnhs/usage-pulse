@@ -74,12 +74,25 @@ Its states:
 
 **Detail pane.** Run `/usage-pulse` to open a pane with a bar for each limit, the exact reset dates, the context window, and the session's tokens split between the main chat and subagents.
 
+## Auto-compact
+
+The bar ends with a toggle, `Auto-compact: off`. Click it to turn it on.
+
+While it is on, usage-pulse runs `/compact` for you whenever the context passes 150k tokens:
+
+- right after the reply that took it over 150k, once the turn has finished;
+- or, if a turn was still running then, just before your next message is sent.
+
+You get a short notification each time it compacts. The setting is remembered across sessions and projects, and it is off until you turn it on.
+
+Why 150k: every message resends the whole context, so the larger it gets, the more each question costs. Compacting keeps a summary of the conversation and drops the bulk, so later messages cost far less.
+
 ## Privacy and cost
 
 Everything comes from Claude Code itself: the same rate-limit, context and cost figures behind the status line and `/cost`. usage-pulse:
 
 - makes no network requests and no model calls, so it uses none of your limit;
-- reads no files and stores nothing beyond the current session;
+- reads no files, and keeps one value across sessions: whether auto-compact is on;
 - shows limits only on a subscription (Pro or Max). With an API key the limit items are hidden, and the rest still shows.
 
 The dollar figure is what the session would cost at API prices. On a subscription you are not billed for it, but it is a handy way to compare how heavy sessions are.
@@ -96,16 +109,18 @@ cd usage-pulse
 claude --plugin-dir .
 ```
 
-`--plugin-dir` loads the plugin from your working copy and reloads it when you save. The project is three files:
+`--plugin-dir` loads the plugin from your working copy and reloads it when you save. The project is:
 
-- `hooks/register.tsx`: the hooks module (the bar, the pane, the measurements)
+- `hooks/register.tsx`: the hooks module (the bar, the pane, the measurements, auto-compact)
 - `types/index.d.ts`: the type contract for the values kept in session state
+- `tests/`: tests run by `claude plugin test`
 - `.claude-plugin/plugin.json`: the manifest
 
 Before you open a pull request:
 
 ```
 claude plugin validate .
+claude plugin test .
 npx tsc -p .
 ```
 
