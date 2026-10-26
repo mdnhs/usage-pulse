@@ -301,12 +301,7 @@ export const register: Register = on => {
     // A pill switch beside the context size: knob left and grey when off,
     // right on a soft green track when on.
     const toggle = (
-      <Button
-        key="auto-compact"
-        label={isAutoCompact ? 'Auto-compact on' : 'Auto-compact off'}
-        plain
-        onPress={() => toggleAutoCompact($)}
-      >
+      <Button key="auto-compact" plain onPress={() => toggleAutoCompact($)}>
         <Text
           backgroundColor={isAutoCompact ? SWITCH.onTrack : SWITCH.offTrack}
           color={isAutoCompact ? SWITCH.onKnob : SWITCH.offKnob}
