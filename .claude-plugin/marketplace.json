@@ -1,0 +1,12 @@
+{
+  "name": "usage-pulse",
+  "owner": { "name": "mdnhs", "url": "https://github.com/mdnhs" },
+  "description": "usage-pulse: see your Claude Code plan usage, limits and session cost at a glance",
+  "plugins": [
+    {
+      "name": "usage-pulse",
+      "source": "./",
+      "description": "Weekly and 5-hour limit use, reset countdown, burn-rate forecast, context size and session cost in one bar above the prompt"
+    }
+  ]
+}

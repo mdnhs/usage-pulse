@@ -1,0 +1,11 @@
+{
+  "name": "usage-pulse",
+  "version": "0.1.0",
+  "description": "A calm one-line bar above the prompt showing your weekly and 5-hour limit use, reset countdown, burn-rate forecast, context size and session cost",
+  "author": { "name": "mdnhs", "url": "https://github.com/mdnhs" },
+  "homepage": "https://github.com/mdnhs/usage-pulse",
+  "repository": "https://github.com/mdnhs/usage-pulse",
+  "license": "MIT",
+  "keywords": ["usage", "rate-limit", "tokens", "cost", "context", "status"],
+  "types": "./types/index.d.ts"
+}
