@@ -5,7 +5,7 @@
 usage-pulse adds one calm line above the prompt:
 
 ```
-Week 30% ↻5d 13h · 0.9%/h ⚠ out by Thursday · 5h 25% · Context 158k ⚠ · Session 623k · $3.45
+Week 30% ↻5d 13h · 0.9%/h ⚠ out by Thursday · 5h 25% · Context 158k ⚠ ●━ · Session 623k · $3.45
 ```
 
 ## Why you might want it
@@ -76,7 +76,7 @@ Its states:
 
 ## Auto-compact
 
-The bar ends with a toggle, `Auto-compact: off`. Click it to turn it on.
+Next to the context size is a small switch: `●━` (grey) is off, `━●` (green) is on. Click it to flip it.
 
 While it is on, usage-pulse runs `/compact` for you whenever the context passes 150k tokens:
 

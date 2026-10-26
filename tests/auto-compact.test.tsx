@@ -40,11 +40,11 @@ test('the toggle starts off and turns on, remembered in the store', async ($, on
   await $.session.measure(measure(40_000))
 
   const ui = await $.ui.mount({ ...BAND, surface: 'vscode' })
-  expect((await ui.find({ key: 'auto-compact' }))?.text).toBe('Auto-compact: off')
+  expect((await ui.find({ key: 'auto-compact' }))?.text).toBe(' ●━ ')
 
   await ui.press({ key: 'auto-compact' })
   expect(log).toContain('store.set true')
-  expect((await ui.find({ key: 'auto-compact' }))?.text).toBe('Auto-compact: on')
+  expect((await ui.find({ key: 'auto-compact' }))?.text).toBe(' ━● ')
   await ui.unmount()
 })
 

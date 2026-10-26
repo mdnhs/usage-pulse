@@ -60,6 +60,15 @@ const SOFT = {
   coral: '#D98E80',
 }
 
+const SWITCH = {
+  offTrack: '#4A4F58',
+  offTrackHover: '#5A606B',
+  offKnob: '#A6ABB3',
+  onTrack: '#5E8C6A',
+  onTrackHover: '#6E9E7A',
+  onKnob: '#F2F5F2',
+}
+
 // Each item keeps its own calm colour until it matters, then amber, then coral.
 const quietColor = (percent: number, base: string) =>
   percent >= 80 ? SOFT.coral : percent >= 50 ? SOFT.amber : base
@@ -243,7 +252,7 @@ export const register: Register = on => {
     }
 
     // One calm line, each item in its own soft colour.
-    const parts: { text: string; color: string }[] = []
+    const parts: { text: string; color: string; hasSwitch?: true }[] = []
     if (weekly) {
       const reset = weeklyReset !== undefined ? ` ↻${shortTime(weeklyReset)}` : ''
       parts.push({
@@ -276,6 +285,7 @@ export const register: Register = on => {
       parts.push({
         text: ctxK * 1000 >= LARGE_CONTEXT ? `Context ${ctxK}k ⚠` : `Context ${ctxK}k`,
         color: ctxK * 1000 >= LARGE_CONTEXT ? SOFT.amber : SOFT.lavender,
+        hasSwitch: true,
       })
     }
     if (snap.costUsd !== undefined) {
@@ -288,6 +298,27 @@ export const register: Register = on => {
     }
 
     const isAutoCompact = await read($, autoCompact)
+    // A pill switch beside the context size: knob left and grey when off,
+    // right on a soft green track when on.
+    const toggle = (
+      <Button
+        key="auto-compact"
+        label={isAutoCompact ? 'Auto-compact on' : 'Auto-compact off'}
+        plain
+        onPress={() => toggleAutoCompact($)}
+      >
+        <Text
+          backgroundColor={isAutoCompact ? SWITCH.onTrack : SWITCH.offTrack}
+          color={isAutoCompact ? SWITCH.onKnob : SWITCH.offKnob}
+          hover={{
+            scope: 'auto-compact',
+            backgroundColor: isAutoCompact ? SWITCH.onTrackHover : SWITCH.offTrackHover,
+          }}
+        >
+          {isAutoCompact ? ' ━● ' : ' ●━ '}
+        </Text>
+      </Button>
+    )
 
     // Space between items only: a gap would also open between wrapped rows.
     return (
@@ -295,15 +326,8 @@ export const register: Register = on => {
         {parts.flatMap((p, i) => [
           ...(i > 0 ? [<Text dimColor>·</Text>] : []),
           <Text color={p.color}>{p.text}</Text>,
+          ...(p.hasSwitch ? [toggle] : []),
         ])}
-        <Text dimColor>·</Text>
-        <Button
-          key="auto-compact"
-          label={isAutoCompact ? 'Auto-compact: on' : 'Auto-compact: off'}
-          plain
-          dimColor={!isAutoCompact}
-          onPress={() => toggleAutoCompact($)}
-        />
       </Box>
     )
   })
