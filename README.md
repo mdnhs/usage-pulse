@@ -112,6 +112,8 @@ While it is on, usage-pulse runs `/compact` whenever the context passes 150k tok
 1. within a few seconds of Claude finishing a reply, once the session is idle; or
 2. if you send a message first, just before that message goes out.
 
+In the terminal usage-pulse compacts the session directly. In the VS Code extension and other SDK hosts, where a plugin cannot do that yet, it runs `/compact` for you, as if you had typed it. A compaction can take a minute or more on a large context.
+
 A notification confirms each compaction. If one is skipped or fails, a notification says why.
 
 **Why 150k.** Every message resends the whole context, so each question costs more as the context grows. Compacting replaces the conversation with a summary, and the messages after it cost far less.

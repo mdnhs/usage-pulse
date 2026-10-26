@@ -119,14 +119,21 @@ const resetText = (iso?: string) => {
 const AUTO_COMPACT_POLL = 5_000
 // A compaction that has not settled by then is taken as lost.
 const COMPACT_TIMEOUT = 5 * 60_000
+// After handing /compact to the engine, wait this long (or until the context
+// shrinks) before handing it another.
+const QUEUED_WAIT = 5 * 60_000
 
 let compactingSince = 0
+let queuedAt = 0
 // Each failure reason is shown once a session, so a refusal during every
 // running turn does not repeat.
 const reportedFailures = new Set<string>()
 
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
 // Compacts between turns. While a turn runs the engine refuses the call, and
-// the next poll or prompt tries again.
+// the next poll or prompt tries again. Where a plugin cannot compact directly
+// (an SDK host such as the VS Code extension), it runs /compact instead.
 async function compactNow($: EngineInterface) {
   const now = await $.clock.now()
   if (compactingSince && now - compactingSince < COMPACT_TIMEOUT) return
@@ -141,11 +148,32 @@ async function compactNow($: EngineInterface) {
     await update($, snapshot, () => toSnapshot(usage.context, usage.rateLimits, usage.cost))
     $.ui.toast('Auto-compacted: context was over 150k tokens')
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    // Refused mid-turn is expected; anything else the person should see.
-    if (!/turn/i.test(reason)) reportOnce($, `Auto-compact failed: ${reason}`)
+    // Refused mid-turn is expected: the next poll or prompt tries again. Any
+    // other refusal (an SDK host has none to offer yet) falls back to /compact,
+    // not awaited, as the command waits for the session to go idle.
+    if (!/while a turn/i.test(errorText(error))) void compactByCommand($, now)
   } finally {
     compactingSince = 0
+  }
+}
+
+// Runs /compact as a command, or failing that queues it as a prompt. Either
+// waits for the session to go idle, then compacts as if the person typed it.
+async function compactByCommand($: EngineInterface, now: number) {
+  if (queuedAt && now - queuedAt < QUEUED_WAIT) return
+  queuedAt = now
+  $.ui.toast('Auto-compact: compacting, context is over 150k tokens')
+  try {
+    await $.command.run({ command: 'compact' })
+    return
+  } catch {
+    // Some hosts refuse a plugin's command; a prompt still gets through.
+  }
+  try {
+    await $.prompt.submit({ text: '/compact', asUser: true })
+  } catch (error) {
+    queuedAt = 0
+    reportOnce($, `Auto-compact failed: ${errorText(error)}`)
   }
 }
 
@@ -157,7 +185,8 @@ function reportOnce($: EngineInterface, text: string) {
 
 async function compactIfLarge($: EngineInterface) {
   const snap = await read($, snapshot)
-  if ((await read($, autoCompact)) && (snap?.contextTokens ?? 0) >= LARGE_CONTEXT) {
+  const isOn = await read($, autoCompact)
+  if (isOn && (snap?.contextTokens ?? 0) >= LARGE_CONTEXT) {
     await compactNow($)
   }
 }
@@ -188,7 +217,8 @@ export const register: Register = on => {
 
   // A prompt sent before the poll caught the idle moment: compact first.
   on('prompt.submit', async ($, e, next) => {
-    await compactIfLarge($)
+    // Our own queued /compact passes through here too.
+    if (!e.text.trim().startsWith('/compact')) await compactIfLarge($)
 
     return next(e)
   })
@@ -201,6 +231,8 @@ export const register: Register = on => {
 
   on('session.measure', async ($, e, next) => {
     await update($, snapshot, () => toSnapshot(e.context, e.rateLimits, e.cost))
+    // The queued /compact has done its work: allow the next one.
+    if ((e.context.tokens ?? 0) < LARGE_CONTEXT) queuedAt = 0
 
     const weekly = e.rateLimits.find(l => l.kind === 'seven_day')
     if (weekly) {

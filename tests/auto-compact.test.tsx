@@ -13,7 +13,12 @@ const measure = (tokens: number) => ({
 })
 
 // Stands in for the engine: commands, usage, the store, compaction.
-const engine = (on: Parameters<Parameters<typeof test>[1]>[1], log: string[], stored: { value?: unknown }) => {
+const engine = (
+  on: Parameters<Parameters<typeof test>[1]>[1],
+  log: string[],
+  stored: { value?: unknown },
+  isHeadless = false,
+) => {
   on('clock.now', () => ({ value: Date.parse('2026-10-27T12:00:00Z') }))
   on('clock.every', () => ({ value: undefined }))
   on('command.register', () => ({ value: { command: 'usage-pulse' } }))
@@ -27,6 +32,8 @@ const engine = (on: Parameters<Parameters<typeof test>[1]>[1], log: string[], st
     return { value: undefined }
   })
   on('session.compact', () => {
+    // An SDK host such as the VS Code extension refuses a plugin's compaction.
+    if (isHeadless) throw new Error('$.session.compact: not available in a headless (-p / SDK) session yet')
     log.push('compact')
     return { messages: [{ role: 'user', text: 'Summary of the conversation so far.', toolUses: [] }] }
   })
@@ -66,4 +73,19 @@ test('with the toggle off, nothing compacts', async ($, on) => {
 
   await $.prompt.submit({ text: 'next question' })
   expect(log).not.toContain('compact')
+})
+
+test('where a plugin cannot compact directly, it runs /compact', async ($, on) => {
+  const log: string[] = []
+  engine(on, log, { value: true }, true)
+  on('command.run', (_, e) => {
+    log.push(`command ${e.command}`)
+    return { text: '' }
+  })
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  await $.session.measure(measure(160_000))
+
+  await $.prompt.submit({ text: 'next question' })
+  await $.prompt.submit({ text: 'another question' })
+  expect(log.filter(l => l === 'command compact')).toHaveLength(1)
 })
