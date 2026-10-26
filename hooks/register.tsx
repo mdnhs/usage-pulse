@@ -22,7 +22,7 @@ const baseline = atom({ plugin: 'usage-pulse', key: 'baseline' } as const, null,
 const HOUR = 3_600_000
 // Wait this long before trusting a burn rate.
 const MIN_RATE_WINDOW = 10 * 60_000
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 // The two largest units: "5d 13h", "3h 20m", "29m".
 const shortTime = (ms: number) => {

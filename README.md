@@ -5,7 +5,7 @@
 usage-pulse adds one calm line above the prompt:
 
 ```
-Week 30% ↻5d 13h · 2.5%/h ⚠ out by Thu · 5h 25% · Context 158k ⚠ · Session 623k · $3.45
+Week 30% ↻5d 13h · 2.5%/h ⚠ out by Thursday · 5h 25% · Context 158k ⚠ · Session 623k · $3.45
 ```
 
 ## Why you might want it
@@ -51,7 +51,7 @@ In the desktop app, where `/plugin` does not run: click **+** next to the prompt
 | Item | Example | Meaning |
 | --- | --- | --- |
 | Week | `Week 30% ↻5d 13h` | Share of your 7-day limit used, and time left until it resets |
-| Forecast | `2.5%/h ⚠ out by Thu` | How fast this session uses the weekly limit, and whether it runs out before the reset |
+| Forecast | `2.5%/h ⚠ out by Thursday` | How fast this session uses the weekly limit, and whether it runs out before the reset |
 | 5h | `5h 25%` | Share of your 5-hour limit used. Its reset time appears once it passes 70% |
 | Context | `Context 158k ⚠` | Tokens in the current context window. ⚠ appears above 150k |
 | Session | `Session 623k · $3.45` | Tokens processed this session (main chat and subagents, cache reads included) and its cost at API prices |
@@ -63,7 +63,7 @@ The forecast has four states:
 | `Forecast: measuring` | The first 10 minutes of a session, before there is enough data |
 | `Forecast: steady` | The weekly share hasn't moved |
 | `0.8%/h · lasts to reset` | At this pace the limit outlasts the current week |
-| `2.5%/h ⚠ out by Thu` | At this pace the limit runs out before it resets |
+| `2.5%/h ⚠ out by Thursday` | At this pace the limit runs out before it resets |
 
 **Colours.** Each item has its own soft colour that reads well on dark and light themes. A limit turns amber past 50% and coral past 80%, and you get a notification when the weekly limit passes 80%.
 
