@@ -289,8 +289,9 @@ export const register: Register = on => {
 
     const isAutoCompact = await read($, autoCompact)
 
+    // Space between items only: a gap would also open between wrapped rows.
     return (
-      <Box gap={1}>
+      <Box flexWrap="wrap" columnGap={1} rowGap={0}>
         {parts.flatMap((p, i) => [
           ...(i > 0 ? [<Text dimColor>·</Text>] : []),
           <Text color={p.color}>{p.text}</Text>,
