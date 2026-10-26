@@ -5,7 +5,7 @@
 usage-pulse adds one calm line above the prompt:
 
 ```
-Week 30% ↻5d 13h · 2.5%/h ⚠ out by Thursday · 5h 25% · Context 158k ⚠ · Session 623k · $3.45
+Week 30% ↻5d 13h · 0.9%/h ⚠ out by Thursday · 5h 25% · Context 158k ⚠ · Session 623k · $3.45
 ```
 
 ## Why you might want it
@@ -21,7 +21,7 @@ Claude Code has `/usage` and `/cost`, but you have to remember to run them, and 
 
 usage-pulse keeps those numbers in view all the time and adds what they don't show:
 
-- **A forecast.** It measures how fast this session is using your weekly limit and tells you if you'll run out before the reset, while there is still time to change course.
+- **A forecast.** From your pace so far this week, it tells you which day the weekly limit will run out if you keep going like this, while there is still time to change course.
 - **A countdown.** You see when each limit resets, not just a date.
 - **The session's real size.** Tokens across the main chat and every subagent, plus what the session would cost at API prices, so heavy sessions stand out.
 - **A context warning.** A ⚠ appears when the context passes 150k tokens: a good moment to `/compact` or `/clear`.
@@ -51,19 +51,24 @@ In the desktop app, where `/plugin` does not run: click **+** next to the prompt
 | Item | Example | Meaning |
 | --- | --- | --- |
 | Week | `Week 30% ↻5d 13h` | Share of your 7-day limit used, and time left until it resets |
-| Forecast | `2.5%/h ⚠ out by Thursday` | How fast this session uses the weekly limit, and whether it runs out before the reset |
+| Forecast | `0.9%/h ⚠ out by Thursday` | Your pace on the weekly limit, and the day it runs out if that is before the reset |
 | 5h | `5h 25%` | Share of your 5-hour limit used. Its reset time appears once it passes 70% |
 | Context | `Context 158k ⚠` | Tokens in the current context window. ⚠ appears above 150k |
 | Session | `Session 623k · $3.45` | Tokens processed this session (main chat and subagents, cache reads included) and its cost at API prices |
 
-The forecast has four states:
+The forecast works out two paces and goes by the faster one:
+
+- **This week's average:** the share used so far, divided by the hours since the week began (worked out from the reset time). It shows from the first reply, with no warm-up.
+- **This session's pace:** how much the share has moved since the session started, once it has run for 10 minutes. A heavy session can be well above the weekly average, so it still raises the warning.
+
+Its states:
 
 | State | Meaning |
 | --- | --- |
-| `Forecast: measuring` | The first 10 minutes of a session, before there is enough data |
-| `Forecast: steady` | The weekly share hasn't moved |
-| `0.8%/h · lasts to reset` | At this pace the limit outlasts the current week |
-| `2.5%/h ⚠ out by Thursday` | At this pace the limit runs out before it resets |
+| `0.4%/h · lasts to reset` | At this pace the limit outlasts the current week |
+| `0.9%/h ⚠ out by Thursday` | At this pace the limit runs out before it resets, on that day |
+| `Forecast: steady` | Nothing used yet this week |
+| `Forecast: measuring` | Less than an hour into a new week, or no reset time reported yet |
 
 **Colours.** Each item has its own soft colour that reads well on dark and light themes. A limit turns amber past 50% and coral past 80%, and you get a notification when the weekly limit passes 80%.
 

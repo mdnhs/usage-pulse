@@ -20,8 +20,10 @@ const baseline = atom({ plugin: 'usage-pulse', key: 'baseline' } as const, null,
 })
 
 const HOUR = 3_600_000
-// Wait this long before trusting a burn rate.
+const WEEK = 7 * 24 * HOUR
+// Wait this long before trusting a burn rate: a session's, and a fresh week's.
 const MIN_RATE_WINDOW = 10 * 60_000
+const MIN_WEEK_ELAPSED = HOUR
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 // The two largest units: "5d 13h", "3h 20m", "29m".
@@ -161,10 +163,23 @@ export const register: Register = on => {
     const weeklyReset = weekly && resetIn(weekly, now)
     const fiveHourReset = fiveHour && resetIn(fiveHour, now)
 
-    // Weekly percent per hour since the first reading, and where it lands.
-    let burn: { perHour: number; emptyAt?: number } | undefined
+    // Two paces for the weekly limit: the average since the week began (known
+    // from the reset time), and this session's since its first reading. The
+    // faster one decides where it lands, so a heavy session still warns.
+    let weekPace: number | undefined
+    if (weekly && weeklyReset !== undefined) {
+      const elapsed = WEEK - weeklyReset
+      if (elapsed >= MIN_WEEK_ELAPSED) weekPace = weekly.percentUsed / (elapsed / HOUR)
+    }
+    let sessionPace: number | undefined
     if (weekly && base && now - base.at >= MIN_RATE_WINDOW) {
-      const perHour = (weekly.percentUsed - base.percent) / ((now - base.at) / HOUR)
+      sessionPace = (weekly.percentUsed - base.percent) / ((now - base.at) / HOUR)
+    }
+    const paces = [weekPace, sessionPace].filter((p): p is number => p !== undefined)
+
+    let burn: { perHour: number; emptyAt?: number } | undefined
+    if (weekly && paces.length > 0) {
+      const perHour = Math.max(...paces)
       if (perHour > 0) {
         const emptyAt = now + ((100 - weekly.percentUsed) / perHour) * HOUR
         const beforeReset = weeklyReset === undefined || emptyAt < now + weeklyReset
@@ -181,7 +196,6 @@ export const register: Register = on => {
         color: quietColor(weekly.percentUsed, SOFT.sage),
       })
 
-      const isWarmedUp = base !== null && now - base.at >= MIN_RATE_WINDOW
       if (burn?.emptyAt) {
         const day = WEEKDAYS[new Date(burn.emptyAt).getDay()]
         parts.push({ text: `${burn.perHour.toFixed(1)}%/h ⚠ out by ${day}`, color: SOFT.amber })
@@ -189,7 +203,7 @@ export const register: Register = on => {
         parts.push({ text: `${burn.perHour.toFixed(1)}%/h · lasts to reset`, color: SOFT.sage })
       } else {
         parts.push({
-          text: isWarmedUp ? 'Forecast: steady' : 'Forecast: measuring',
+          text: paces.length > 0 ? 'Forecast: steady' : 'Forecast: measuring',
           color: 'subtle',
         })
       }
