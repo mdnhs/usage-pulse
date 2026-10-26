@@ -310,7 +310,7 @@ export const register: Register = on => {
             backgroundColor: isAutoCompact ? SWITCH.onTrackHover : SWITCH.offTrackHover,
           }}
         >
-          {isAutoCompact ? ' ━● ' : ' ●━ '}
+          {isAutoCompact ? '━●' : '●━'}
         </Text>
       </Button>
     )
